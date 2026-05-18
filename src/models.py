@@ -103,3 +103,28 @@ class TenantSettlement(BaseModel):
     total_due_pln: float
     total_transfers_pln: float = 0.0
     balance_pln: float = 0.0
+
+
+class BlacklistedTenant(BaseModel):
+    name: str
+    reason: str
+    date_added: str | None = None
+
+    @staticmethod
+    def from_json_file(file_path: str) -> Dict[str, 'BlacklistedTenant']:
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            return {}
+
+        if isinstance(data, list):
+            return {entry['name']: BlacklistedTenant(**entry) for entry in data}
+        if isinstance(data, dict):
+            return {
+                key: BlacklistedTenant(**value)
+                for key, value in data.items()
+                if isinstance(value, dict)
+            }
+
+        raise AssertionError('Expected blacklist to be a list or a dict of tenants')

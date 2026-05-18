@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Jan Nowak",
+    "reason": "Repeated payment fraud",
+    "date_added": "2025-01-10"
+  },
+  {
+    "name": "Ewa Adamska",
+    "reason": "Forged identity documents",
+    "date_added": "2025-02-05"
+  },
+  {
+    "name": "Piotr Kowalski",
+    "reason": "Wielokrotne spóźnienia z płatnościami",
+    "date_added": "2024-12-15"
+  }
+]

@@ -120,3 +120,43 @@ def test_check_tenant_blacklist_returns_none_for_tenant_not_on_blacklist(tmp_pat
     manager = Manager(Parameters(blacklist_json_path=str(blacklist_path)))
 
     assert manager.check_tenant_blacklist('Adam Kowalski') is None
+def test_validate_transfer_to_nonexistent_tenant():
+    manager = Manager(Parameters())
+    transfer = Transfer(
+        tenant='nonexistent-tenant',
+        date='2025-01-15',
+        settlement_year=2025,
+        settlement_month=1,
+        amount_pln=1500.00,
+        type='payment'
+    )
+    errors = manager.check_transfer_validity(transfer)
+    assert len(errors) > 0
+    assert any('najemca' in error.lower() or 'tenant' in error.lower() for error in errors)
+
+def test_validate_transfer_outside_tenant_agreement_dates():
+    manager = Manager(Parameters())
+    transfer = Transfer(
+        tenant='tenant-1',
+        date='2026-06-15',
+        settlement_year=2026,
+        settlement_month=6,
+        amount_pln=1500.00,
+        type='payment'
+    )
+    errors = manager.check_transfer_validity(transfer)
+    assert len(errors) > 0
+    assert any('umowa' in error.lower() or 'agreement' in error.lower() or 'okres' in error.lower() for error in errors)
+
+def test_validate_transfer_within_tenant_agreement_dates():
+    manager = Manager(Parameters())
+    transfer = Transfer(
+        tenant='tenant-1',
+        date='2025-06-15',
+        settlement_year=2025,
+        settlement_month=6,
+        amount_pln=1500.00,
+        type='payment'
+    )
+    errors = manager.check_transfer_validity(transfer)
+    assert not any('umowa' in error.lower() or 'agreement' in error.lower() for error in errors)

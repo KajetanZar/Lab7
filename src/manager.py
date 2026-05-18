@@ -2,6 +2,7 @@ from datetime import datetime
 
 from src.models import Apartment, Bill, BlacklistedTenant, Parameters, Tenant, TenantSettlement, Transfer, ApartmentSettlement
 from typing import List, Tuple
+from datetime import date
 
 class Manager:
     def __init__(self, parameters: Parameters):
@@ -126,6 +127,26 @@ class Manager:
             return None
         tenant = self.blacklisted_tenants.get(tenant_name)
         return tenant.reason if tenant is not None else None
+    def check_transfer_validity(self, transfer: Transfer) -> List[str]:
+        errors = []
+        tenant = self.tenants.get(transfer.tenant)
+
+        if tenant is None:
+            errors.append("Tenant does not exist")
+            return errors
+
+        agreement_from = date.fromisoformat(tenant.date_agreement_from)
+        agreement_to = date.fromisoformat(tenant.date_agreement_to)
+        transfer_date = date.fromisoformat(transfer.date)
+
+        if transfer_date < agreement_from or transfer_date > agreement_to:
+            errors.append("Transfer date is outside tenant agreement period")
+
+        if transfer.settlement_year is not None and transfer.settlement_month is not None:
+            settlement_date = date(transfer.settlement_year, transfer.settlement_month, 1)
+            if settlement_date < agreement_from.replace(day=1) or settlement_date > agreement_to.replace(day=1):
+                errors.append("Transfer settlement period is outside tenant agreement period")
+
     
     def validate_transfer(self, transfer: Transfer) -> List[str]:
 

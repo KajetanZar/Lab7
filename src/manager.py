@@ -12,6 +12,10 @@ class Manager:
         self.transfers = []
         self.bills = []
         self.blacklisted_tenants = {}
+        
+        # Wartości skrajne dla przelewów
+        self.min_transfer_amount = 0.0
+        self.max_transfer_amount = float('inf')
        
         self.load_data()
 
@@ -122,3 +126,15 @@ class Manager:
             return None
         tenant = self.blacklisted_tenants.get(tenant_name)
         return tenant.reason if tenant is not None else None
+    
+    def validate_transfer(self, transfer: Transfer) -> List[str]:
+
+        errors = []
+        
+        if transfer.amount_pln < self.min_transfer_amount:
+            errors.append(f"Transfer amount {transfer.amount_pln} is below minimum of {self.min_transfer_amount}")
+        
+        if transfer.amount_pln > self.max_transfer_amount:
+            errors.append(f"Transfer amount {transfer.amount_pln} exceeds maximum of {self.max_transfer_amount}")
+        
+        return errors

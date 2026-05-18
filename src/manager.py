@@ -9,6 +9,10 @@ class Manager:
         self.tenants = {}
         self.transfers = []
         self.bills = []
+        
+        # Wartości skrajne dla przelewów
+        self.min_transfer_amount = 0.0
+        self.max_transfer_amount = float('inf')
        
         self.load_data()
 
@@ -112,3 +116,15 @@ class Manager:
         if apartment_key not in self.apartments:
             raise ValueError("Apartment key does not exist")
         return any([bill for bill in self.bills if bill.apartment == apartment_key and bill.settlement_year == year and bill.settlement_month == month])
+    
+    def validate_transfer(self, transfer: Transfer) -> List[str]:
+
+        errors = []
+        
+        if transfer.amount_pln < self.min_transfer_amount:
+            errors.append(f"Transfer amount {transfer.amount_pln} is below minimum of {self.min_transfer_amount}")
+        
+        if transfer.amount_pln > self.max_transfer_amount:
+            errors.append(f"Transfer amount {transfer.amount_pln} exceeds maximum of {self.max_transfer_amount}")
+        
+        return errors

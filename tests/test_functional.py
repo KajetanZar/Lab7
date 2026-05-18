@@ -1,3 +1,5 @@
+import json
+
 from src.models import Bill, Parameters, TenantSettlement, ApartmentSettlement, Transfer
 from src.manager import Manager
 
@@ -139,3 +141,75 @@ def test_validate_transfer_amount_accepts_value_within_limits():
     assert manager.validate_transfer(valid_transfer) == [], (
         'Prawidłowa kwota przelewu powinna przejść walidację bez błędów.'
     )
+
+def test_check_tenant_blacklist_returns_reason_for_blacklisted_tenant(tmp_path):
+    blacklist_path = tmp_path / 'blacklist.json'
+    blacklist_path.write_text(json.dumps([
+        {
+            'name': 'Jan Nowak',
+            'reason': 'Repeated payment fraud'
+        },
+        {
+            'name': 'Ewa Adamska',
+            'reason': 'Forged identity documents'
+        }
+    ]), encoding='utf-8')
+
+    manager = Manager(Parameters(blacklist_json_path=str(blacklist_path)))
+
+    assert manager.check_tenant_blacklist('Jan Nowak') == 'Repeated payment fraud'
+    assert manager.check_tenant_blacklist('Ewa Adamska') == 'Forged identity documents'
+
+
+def test_check_tenant_blacklist_returns_none_for_tenant_not_on_blacklist(tmp_path):
+    blacklist_path = tmp_path / 'blacklist.json'
+    blacklist_path.write_text(json.dumps([
+        {
+            'name': 'Jan Nowak',
+            'reason': 'Repeated payment fraud'
+        }
+    ]), encoding='utf-8')
+
+    manager = Manager(Parameters(blacklist_json_path=str(blacklist_path)))
+
+    assert manager.check_tenant_blacklist('Adam Kowalski') is None
+def test_validate_transfer_to_nonexistent_tenant():
+    manager = Manager(Parameters())
+    transfer = Transfer(
+        tenant='nonexistent-tenant',
+        date='2025-01-15',
+        settlement_year=2025,
+        settlement_month=1,
+        amount_pln=1500.00,
+        type='payment'
+    )
+    errors = manager.check_transfer_validity(transfer)
+    assert len(errors) > 0
+    assert any('najemca' in error.lower() or 'tenant' in error.lower() for error in errors)
+
+def test_validate_transfer_outside_tenant_agreement_dates():
+    manager = Manager(Parameters())
+    transfer = Transfer(
+        tenant='tenant-1',
+        date='2026-06-15',
+        settlement_year=2026,
+        settlement_month=6,
+        amount_pln=1500.00,
+        type='payment'
+    )
+    errors = manager.check_transfer_validity(transfer)
+    assert len(errors) > 0
+    assert any('umowa' in error.lower() or 'agreement' in error.lower() or 'okres' in error.lower() for error in errors)
+
+def test_validate_transfer_within_tenant_agreement_dates():
+    manager = Manager(Parameters())
+    transfer = Transfer(
+        tenant='tenant-1',
+        date='2025-06-15',
+        settlement_year=2025,
+        settlement_month=6,
+        amount_pln=1500.00,
+        type='payment'
+    )
+    errors = manager.check_transfer_validity(transfer)
+    assert not any('umowa' in error.lower() or 'agreement' in error.lower() for error in errors)

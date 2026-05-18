@@ -10,6 +10,10 @@ class Manager:
         self.tenants = {}
         self.transfers = []
         self.bills = []
+        
+        # Wartości skrajne dla przelewów
+        self.min_transfer_amount = 0.0
+        self.max_transfer_amount = float('inf')
        
         self.load_data()
 
@@ -134,4 +138,15 @@ class Manager:
             if settlement_date < agreement_from.replace(day=1) or settlement_date > agreement_to.replace(day=1):
                 errors.append("Transfer settlement period is outside tenant agreement period")
 
+    
+    def validate_transfer(self, transfer: Transfer) -> List[str]:
+
+        errors = []
+        
+        if transfer.amount_pln < self.min_transfer_amount:
+            errors.append(f"Transfer amount {transfer.amount_pln} is below minimum of {self.min_transfer_amount}")
+        
+        if transfer.amount_pln > self.max_transfer_amount:
+            errors.append(f"Transfer amount {transfer.amount_pln} exceeds maximum of {self.max_transfer_amount}")
+        
         return errors

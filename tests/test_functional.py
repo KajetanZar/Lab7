@@ -1,5 +1,8 @@
+import json
+
 from src.models import Bill, Parameters, TenantSettlement, ApartmentSettlement, Transfer
 from src.manager import Manager
+
 
 
 def test_settlement_due_between_tanants_and_apartment():
@@ -86,6 +89,90 @@ def test_apartment_has_any_bills():
     has_bills = manager.has_any_bills('apart-polanka', 2025, 3)
     assert has_bills == False
 
+def test_validate_transfer_amount_returns_errors_for_extreme_values():
+    manager = Manager(Parameters())
+    manager.min_transfer_amount = 100.0
+    manager.max_transfer_amount = 5000.0
+
+    transfer_too_small = Transfer(
+        tenant='tenant-1',
+        date='2025-01-10',
+        settlement_year=2025,
+        settlement_month=1,
+        amount_pln=50.0,
+        type='payment'
+    )
+
+    transfer_too_large = Transfer(
+        tenant='tenant-1',
+        date='2025-01-10',
+        settlement_year=2025,
+        settlement_month=1,
+        amount_pln=10000.0,
+        type='payment'
+    )
+
+    small_errors = manager.validate_transfer(transfer_too_small)
+    large_errors = manager.validate_transfer(transfer_too_large)
+
+    assert isinstance(small_errors, list)
+    assert small_errors, 'Metoda powinna zgłosić błąd dla kwoty niższej niż minimalna.'
+    assert any('minimum' in error.lower() for error in small_errors)
+
+    assert isinstance(large_errors, list)
+    assert large_errors, 'Metoda powinna zgłosić błąd dla kwoty wyższej niż maksymalna.'
+    assert any('maximum' in error.lower() for error in large_errors)
+
+
+def test_validate_transfer_amount_accepts_value_within_limits():
+    manager = Manager(Parameters())
+    manager.min_transfer_amount = 100.0
+    manager.max_transfer_amount = 5000.0
+
+    valid_transfer = Transfer(
+        tenant='tenant-1',
+        date='2025-01-10',
+        settlement_year=2025,
+        settlement_month=1,
+        amount_pln=1500.0,
+        type='payment'
+    )
+
+    assert manager.validate_transfer(valid_transfer) == [], (
+        'Prawidłowa kwota przelewu powinna przejść walidację bez błędów.'
+    )
+
+def test_check_tenant_blacklist_returns_reason_for_blacklisted_tenant(tmp_path):
+    blacklist_path = tmp_path / 'blacklist.json'
+    blacklist_path.write_text(json.dumps([
+        {
+            'name': 'Jan Nowak',
+            'reason': 'Repeated payment fraud'
+        },
+        {
+            'name': 'Ewa Adamska',
+            'reason': 'Forged identity documents'
+        }
+    ]), encoding='utf-8')
+
+    manager = Manager(Parameters(blacklist_json_path=str(blacklist_path)))
+
+    assert manager.check_tenant_blacklist('Jan Nowak') == 'Repeated payment fraud'
+    assert manager.check_tenant_blacklist('Ewa Adamska') == 'Forged identity documents'
+
+
+def test_check_tenant_blacklist_returns_none_for_tenant_not_on_blacklist(tmp_path):
+    blacklist_path = tmp_path / 'blacklist.json'
+    blacklist_path.write_text(json.dumps([
+        {
+            'name': 'Jan Nowak',
+            'reason': 'Repeated payment fraud'
+        }
+    ]), encoding='utf-8')
+
+    manager = Manager(Parameters(blacklist_json_path=str(blacklist_path)))
+
+    assert manager.check_tenant_blacklist('Adam Kowalski') is None
 def test_validate_transfer_to_nonexistent_tenant():
     manager = Manager(Parameters())
     transfer = Transfer(

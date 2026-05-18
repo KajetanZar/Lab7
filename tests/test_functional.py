@@ -1,3 +1,5 @@
+import json
+
 from src.models import Bill, Parameters, TenantSettlement, ApartmentSettlement, Transfer
 from src.manager import Manager
 
@@ -86,6 +88,38 @@ def test_apartment_has_any_bills():
     has_bills = manager.has_any_bills('apart-polanka', 2025, 3)
     assert has_bills == False
 
+
+def test_check_tenant_blacklist_returns_reason_for_blacklisted_tenant(tmp_path):
+    blacklist_path = tmp_path / 'blacklist.json'
+    blacklist_path.write_text(json.dumps([
+        {
+            'name': 'Jan Nowak',
+            'reason': 'Repeated payment fraud'
+        },
+        {
+            'name': 'Ewa Adamska',
+            'reason': 'Forged identity documents'
+        }
+    ]), encoding='utf-8')
+
+    manager = Manager(Parameters(blacklist_json_path=str(blacklist_path)))
+
+    assert manager.check_tenant_blacklist('Jan Nowak') == 'Repeated payment fraud'
+    assert manager.check_tenant_blacklist('Ewa Adamska') == 'Forged identity documents'
+
+
+def test_check_tenant_blacklist_returns_none_for_tenant_not_on_blacklist(tmp_path):
+    blacklist_path = tmp_path / 'blacklist.json'
+    blacklist_path.write_text(json.dumps([
+        {
+            'name': 'Jan Nowak',
+            'reason': 'Repeated payment fraud'
+        }
+    ]), encoding='utf-8')
+
+    manager = Manager(Parameters(blacklist_json_path=str(blacklist_path)))
+
+    assert manager.check_tenant_blacklist('Adam Kowalski') is None
 def test_validate_transfer_to_nonexistent_tenant():
     manager = Manager(Parameters())
     transfer = Transfer(
